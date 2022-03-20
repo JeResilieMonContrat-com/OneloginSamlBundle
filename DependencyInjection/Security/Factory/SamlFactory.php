@@ -64,11 +64,9 @@ class SamlFactory extends AbstractFactory
         $providerId = 'security.authentication.provider.saml.'.$id;
         $definitionClassname = $this->getDefinitionClassname();
         $definition = $container->setDefinition($providerId, new $definitionClassname($config['authentication_provider']))
-            ->addArgument(new Reference($userProviderId))
-            ->addArgument(array(
-                 'persist_user' => $config['persist_user']
-            ))
             ->addTag('hslavich.saml_provider')
+            ->addMethodCall('setUserProvider', array(new Reference($userProviderId)))
+            ->addMethodCall('setPersistUser', array($config['persist_user']))
         ;
 
         if ($config['user_factory']) {

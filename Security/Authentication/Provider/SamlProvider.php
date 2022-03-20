@@ -32,14 +32,18 @@ class SamlProvider implements AuthenticationProviderInterface
      * @var EntityManagerInterface
      */
     protected $entityManager;
-    protected $options;
+    protected $options = [];
 
-    public function __construct(UserProviderInterface $userProvider, array $options = array())
+    public function setUserProvider(UserProviderInterface $userProvider)
     {
         $this->userProvider = $userProvider;
+    }
+
+    public function setPersistUser(bool $persistUser)
+    {
         $this->options = array_merge(array(
-            'persist_user' => false
-        ), $options);
+            'persist_user' => $persistUser
+        ), $this->options);
     }
 
     public function setUserFactory(SamlUserFactoryInterface $userFactory)
@@ -106,7 +110,7 @@ class SamlProvider implements AuthenticationProviderInterface
             if ($this->userFactory instanceof SamlUserFactoryInterface) {
                 return $this->generateUser($token);
             }
-            
+
             throw $e;
         }
     }
