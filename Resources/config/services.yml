@@ -37,8 +37,11 @@ services:
         arguments:
             - "@Hslavich\\OneloginSamlBundle\\Security\\Utils\\OneLoginAuthRegistry"
 
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
     Hslavich\OneloginSamlBundle\Controller\SamlController:
-        arguments:
-            - "@Hslavich\\OneloginSamlBundle\\Security\\Utils\\OneLoginAuthRegistry"
-        tags:
-            - { name: controller.service_arguments }
+        class: Hslavich\OneloginSamlBundle\Controller\SamlController
+        public: true
+        tags: ['controller.service_arguments']
