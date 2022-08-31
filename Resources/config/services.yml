@@ -32,10 +32,13 @@ services:
             - [ setAuthRegistry, ["@Hslavich\\OneloginSamlBundle\\Security\\Utils\\OneLoginAuthRegistry"] ]
             - [ setDefaultIdpName, ["%hslavich_onelogin_saml.default_idp_name%"] ]
 
-    hslavich_onelogin_saml.saml_logout:
-        class: Hslavich\OneloginSamlBundle\Security\Logout\SamlLogoutHandler
+    hslavich_onelogin_saml.saml_logout_listener:
+        class: Hslavich\OneloginSamlBundle\Security\Logout\SamlLogoutListener
         arguments:
             - "@Hslavich\\OneloginSamlBundle\\Security\\Utils\\OneLoginAuthRegistry"
+        tags:
+            - name: kernel.event_listener
+              event: Symfony\Component\Security\Http\Event\LogoutEvent
 
     _defaults:
         autowire: true

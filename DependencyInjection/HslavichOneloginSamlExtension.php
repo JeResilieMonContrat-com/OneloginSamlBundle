@@ -57,7 +57,6 @@ class HslavichOneloginSamlExtension extends Extension
             );
 
             $registryDef->addMethodCall('addIdpAuth', [$id, new Reference($idpServiceId)]);
-            $this->createLogoutDefinition($container, $id, $idpServiceId);
         }
     }
 
@@ -75,18 +74,6 @@ class HslavichOneloginSamlExtension extends Extension
         if ($id === $defaultIdp) {
             $container->setAlias('onelogin_auth', $serviceId);
         }
-
-        return $serviceId;
-    }
-
-    private function createLogoutDefinition(ContainerBuilder $container, $id, $authId)
-    {
-        $namespace = 'hslavich_onelogin_saml.saml_logout';
-        $def = new ChildDefinition($namespace);
-        $def->setArgument(0, new Reference($authId));
-
-        $serviceId = $namespace . '.' . $id;
-        $container->setDefinition($serviceId, $def);
 
         return $serviceId;
     }
