@@ -2,10 +2,12 @@
 
 namespace Hslavich\OneloginSamlBundle\Controller;
 
+use Hslavich\OneloginSamlBundle\Event\LoginEvent;
 use Hslavich\OneloginSamlBundle\Security\Firewall\SamlListener;
 use Hslavich\OneloginSamlBundle\Security\Utils\OneLoginAuthRegistry;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Security;
@@ -23,7 +25,7 @@ class SamlController extends AbstractController
         $this->authRegistry = $authRegistry;
     }
 
-    public function loginAction(Request $request, $idp = null)
+    public function loginAction(Request $request, EventDispatcherInterface $dispatcher, $idp = null)
     {
         $session = $request->getSession();
         $authErrorKey = Security::AUTHENTICATION_ERROR;
@@ -51,6 +53,8 @@ class SamlController extends AbstractController
         if (strpos($redirectUri, $request->getPathInfo()) !== false)  {
             $redirectUri = null;
         }
+
+        $dispatcher->dispatch(new LoginEvent($request, $idp), LoginEvent::PRE_LOGIN_ACTION);
 
         $this->authRegistry->getIdpAuth($idp)->login($redirectUri);
     }
