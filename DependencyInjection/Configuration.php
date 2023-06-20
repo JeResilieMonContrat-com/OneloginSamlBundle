@@ -129,6 +129,7 @@ class Configuration implements ConfigurationInterface
                 ->scalarNode('entityId')->end()
                 ->scalarNode('NameIDFormat')->end()
                 ->scalarNode('x509cert')->end()
+                ->scalarNode('x509certNew')->end()
                 ->scalarNode('privateKey')->end()
                 ->arrayNode('assertionConsumerService')
                     ->children()
