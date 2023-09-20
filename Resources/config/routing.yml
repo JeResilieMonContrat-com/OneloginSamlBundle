@@ -13,6 +13,7 @@ saml_acs:
 
 saml_acs_idp:
     path:     /saml/acs/{idp}
+    methods:  ['POST']
     defaults: { _controller: Hslavich\OneloginSamlBundle\Controller\SamlController::assertionConsumerServiceAction }
 
 saml_login:
