@@ -16,6 +16,11 @@ class SamlUserProvider implements UserProviderInterface
         $this->defaultRoles = $defaultRoles;
     }
 
+    public function loadUserByIdentifier(string $identifier): UserInterface
+    {
+        return $this->loadUserByUsername($identifier);
+    }
+
     public function loadUserByUsername($username)
     {
         return new $this->userClass($username, $this->defaultRoles);

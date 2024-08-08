@@ -7,7 +7,7 @@ use Symfony\Component\HttpFoundation\Request;
 
 class SamlAuthenticationSuccessHandler extends DefaultAuthenticationSuccessHandler
 {
-    protected function determineTargetUrl(Request $request)
+    protected function determineTargetUrl(Request $request): string
     {
         if ($this->options['always_use_default_target_path']) {
             return $this->options['default_target_path'];

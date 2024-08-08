@@ -8,13 +8,23 @@ use Hslavich\OneloginSamlBundle\Security\Authentication\Token\SamlTokenFactoryIn
 use Hslavich\OneloginSamlBundle\Security\Authentication\Token\SamlTokenInterface;
 use Hslavich\OneloginSamlBundle\Security\User\SamlUserFactoryInterface;
 use Hslavich\OneloginSamlBundle\Security\User\SamlUserInterface;
-use Symfony\Component\Security\Core\Authentication\Provider\AuthenticationProviderInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
+use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
+use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
+use Symfony\Component\Security\Http\Authentication\AuthenticatorManagerInterface;
+use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
+use Symfony\Component\Security\Http\Authenticator\AuthenticatorInterface;
+use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 
-class SamlProvider implements AuthenticationProviderInterface
+class SamlProvider extends AbstractAuthenticator implements AuthenticatorInterface//AuthenticationProviderInterface
 {
     protected $userProvider;
 
@@ -33,6 +43,11 @@ class SamlProvider implements AuthenticationProviderInterface
      */
     protected $entityManager;
     protected $options = [];
+
+    protected AuthenticatorManagerInterface $authenticatorManager;
+
+    protected AuthenticationSuccessHandlerInterface $successHandler;
+    protected AuthenticationFailureHandlerInterface $failureHandler;
 
     public function setUserProvider(UserProviderInterface $userProvider)
     {
@@ -61,11 +76,58 @@ class SamlProvider implements AuthenticationProviderInterface
         $this->entityManager = $entityManager;
     }
 
-    /**
-     * @param SamlTokenInterface $token
-     */
-    public function authenticate(TokenInterface $token)
+    public function setAuthenticatorManager(AuthenticatorManagerInterface $authenticatorManager): void
     {
+        $this->authenticatorManager = $authenticatorManager;
+    }
+
+    public function setSuccessHandler(AuthenticationSuccessHandlerInterface $successHandler): void
+    {
+        $this->successHandler = $successHandler;
+    }
+
+    public function setFailureHandler(AuthenticationFailureHandlerInterface $failureHandler): void
+    {
+        $this->failureHandler = $failureHandler;
+    }
+
+    /**
+     * @param Request $request
+     */
+    public function authenticate(Request $request): Passport
+    {
+        $idpName = $this->options['idp_name'];
+        $oneLoginAuth = $this->authRegistry->getIdpAuth($idpName);
+
+        $oneLoginAuth->processResponse();
+        if ($oneLoginAuth->getErrors()) {
+            $this->logger->error($oneLoginAuth->getLastErrorReason());
+            throw new AuthenticationException($oneLoginAuth->getLastErrorReason());
+        }
+
+        if (isset($this->options['use_attribute_friendly_name']) && $this->options['use_attribute_friendly_name']) {
+            $attributes = $oneLoginAuth->getAttributesWithFriendlyName();
+        } else {
+            $attributes = $oneLoginAuth->getAttributes();
+        }
+        $attributes['sessionIndex'] = $oneLoginAuth->getSessionIndex();
+        $token = new SamlToken();
+        $token->setAttributes($attributes);
+        $token->setIdpName($idpName);
+
+        if (isset($this->options['username_attribute'])) {
+            if (!array_key_exists($this->options['username_attribute'], $attributes)) {
+                $this->logger->error(sprintf("Found attributes: %s", print_r($attributes, true)));
+                throw new \Exception(sprintf("Attribute '%s' not found in SAML data", $this->options['username_attribute']));
+            }
+
+            $username = $attributes[$this->options['username_attribute']][0];
+        } else {
+            $username = $oneLoginAuth->getNameId();
+            $token->setNameId($username);
+        }
+        $token->setUser($username);
+        //
         $user = $this->retrieveUser($token);
 
         if ($user) {
@@ -83,7 +145,12 @@ class SamlProvider implements AuthenticationProviderInterface
             );
             $authenticatedToken->setAuthenticated(true);
 
-            return $authenticatedToken;
+            $userBadge = new UserBadge($username, function (string $username) {
+                return $this->entityManager->getRepository(UserInterface::class)->findOneBy(['username' => $username]);
+            });
+
+            return new SelfValidatingPassport($userBadge);
+            //return $authenticatedToken;
         }
 
         throw new AuthenticationException('The authentication failed.');
@@ -94,9 +161,10 @@ class SamlProvider implements AuthenticationProviderInterface
         return $user->getRoles();
     }
 
-    public function supports(TokenInterface $token)
+    public function supports(Request $request): ?bool
     {
-        return $token instanceof SamlTokenInterface;
+        return $this->authenticatorManager->supports($request);
+        //return $token instanceof SamlTokenInterface;
     }
 
     /**
@@ -129,5 +197,15 @@ class SamlProvider implements AuthenticationProviderInterface
 
     protected function checkUser(SamlUserInterface $user, TokenInterface $token)
     {
+    }
+
+    public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
+    {
+        return $this->successHandler->onAuthenticationSuccess($request, $token);
+    }
+
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    {
+        return $this->failureHandler->onAuthenticationFailure($request, $exception);
     }
 }

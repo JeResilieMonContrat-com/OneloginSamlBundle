@@ -4,12 +4,13 @@ namespace Hslavich\OneloginSamlBundle\DependencyInjection\Security\Factory;
 
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\AbstractFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\DefinitionDecorator;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Reference;
 
 class SamlFactory extends AbstractFactory
 {
+    private const PRIORITY = -10;
+
     public function __construct()
     {
         $this->addOption('username_attribute');
@@ -38,7 +39,7 @@ class SamlFactory extends AbstractFactory
         return 'pre_auth';
     }
 
-    public function getKey()
+    public function getKey(): string
     {
         return 'saml';
     }
@@ -53,15 +54,15 @@ class SamlFactory extends AbstractFactory
      * AuthenticationProviderInterface.
      *
      * @param ContainerBuilder $container
-     * @param string $id The unique id of the firewall
+     * @param string $firewallName The unique name of the firewall
      * @param array $config The options array for this listener
      * @param string $userProviderId The id of the user provider
      *
-     * @return string never null, the id of the authentication provider
+     * @return array|string never null, the id of the authentication provider
      */
-    protected function createAuthProvider(ContainerBuilder $container, $id, $config, $userProviderId)
+    public function createAuthenticator(ContainerBuilder $container, $firewallName, $config, $userProviderId): array|string
     {
-        $providerId = 'security.authentication.provider.saml.' . $id;
+        $providerId = 'security.authentication.provider.saml.' . $firewallName;
         $definition = $container->setDefinition($providerId, new ChildDefinition($config['authentication_provider']))
             ->addTag('hslavich.saml_provider')
             ->addMethodCall('setUserProvider', array(new Reference($userProviderId)))
@@ -88,5 +89,10 @@ class SamlFactory extends AbstractFactory
         ;
 
         return $entryPointId;
+    }
+
+    public function getPriority(): int
+    {
+        return static::PRIORITY;
     }
 }
